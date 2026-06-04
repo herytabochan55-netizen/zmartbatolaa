@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CATATAN KEUANGAN ZMART BATOLA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #581c87; font-family: sans-serif; }
+        .card { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); }
+        .btn-purple { transition: all 0.3s ease; }
+        .btn-purple:hover { transform: scale(1.02); }
+        .bg-element { position: absolute; pointer-events: none; z-index: 0; font-size: 20px; animation: float 10s infinite linear; opacity: 0.6; }
+        @keyframes float { 0% { transform: translateY(100vh) translateX(0); } 100% { transform: translateY(-10vh) translateX(50px); } }
+        .locked { filter: blur(5px); pointer-events: none; user-select: none; transition: 0.3s; }
+        .unlocked { filter: blur(0); pointer-events: auto; }
+    </style>
+</head>
+<body class="p-4 md:p-8 relative">
+    <div id="background-layer" class="fixed inset-0 overflow-hidden z-0"></div>
+    
+    <!-- PIN Overlay -->
+    <div id="pinOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-purple-900/90 p-4 hidden">
+        <div class="bg-white p-8 rounded-3xl text-center shadow-2xl max-w-sm w-full">
+            <h2 class="text-2xl font-bold text-purple-900 mb-4">🔐 Masukkan PIN</h2>
+            <input type="password" id="pinInput" maxlength="6" class="w-full p-4 text-center text-2xl border-4 border-purple-200 rounded-xl mb-4 outline-none" placeholder="******">
+            <div class="flex gap-2">
+                <button onclick="closePin()" class="w-full bg-gray-400 text-white font-bold py-3 rounded-xl hover:bg-gray-500">Batal</button>
+                <button onclick="verifikasiPin()" class="w-full bg-purple-600 text-white font-bold py-3 rounded-xl hover:bg-purple-700">Buka</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="relative z-10 max-w-6xl mx-auto bg-purple-50 p-8 rounded-3xl card border border-purple-800">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-extrabold text-purple-900 flex items-center">
+                <span class="mr-3 text-4xl">🔮</span> CATATAN KEUANGAN ZMART BATOLA
+            </h1>
+            <button onclick="openPinForIdentity()" id="btnEdit" class="bg-purple-200 text-purple-800 px-4 py-2 rounded-lg text-xs font-bold hover:bg-purple-300">Edit Identitas (PIN)</button>
+        </div>
+        
+        <div id="identitySection" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 p-6 bg-white rounded-2xl border border-purple-100 locked">
+            <div>
+                <label class="block text-sm font-semibold text-purple-800 mb-2">Nama Pengguna:</label>
+                <input type="text" id="namaPengguna" onchange="simpanData()" class="w-full p-3 border-2 border-purple-200 rounded-xl outline-none" placeholder="Masukkan nama...">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-purple-800 mb-2">Asal Tempat Tinggal:</label>
+                <input type="text" id="asalTempat" onchange="simpanData()" class="w-full p-3 border-2 border-purple-200 rounded-xl outline-none" placeholder="Masukkan alamat...">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-purple-800 mb-2">Saldo Awal (Bulan Lalu):</label>
+                <input type="number" id="saldoAwal" onchange="simpanData(); renderTabel()" class="w-full p-3 border-2 border-purple-200 rounded-xl outline-none" placeholder="0">
+            </div>
+            <div class="md:col-span-3 text-right">
+                <button onclick="lockSections()" class="bg-purple-600 text-white font-bold py-2 px-6 rounded-xl hover:bg-purple-700">Simpan & Kunci</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 p-6 bg-purple-100 rounded-2xl border border-purple-200">
+            <input type="date" id="tanggal" oninput="saveDraft()" class="p-3 border-2 rounded-xl border-purple-200 focus:border-purple-500 outline-none">
+            <input type="text" id="keterangan" oninput="saveDraft()" placeholder="Keterangan" class="p-3 border-2 rounded-xl border-purple-200 focus:border-purple-500 outline-none">
+            <input type="number" id="masuk" oninput="saveDraft()" placeholder="Pemasukan" class="p-3 border-2 rounded-xl border-purple-200 focus:border-purple-500 outline-none">
+            <input type="number" id="keluar" oninput="saveDraft()" placeholder="Pengeluaran" class="p-3 border-2 rounded-xl border-purple-200 focus:border-purple-500 outline-none">
+            <button onclick="tambahTransaksi()" class="bg-purple-600 text-white font-bold py-3 rounded-xl hover:bg-purple-700 btn-purple">Simpan</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            <div class="bg-purple-600 text-white p-4 rounded-2xl"><div class="text-[10px] font-bold uppercase tracking-wider">Total Masuk</div><div id="totalMasuk" class="text-xl font-bold mt-1">0</div></div>
+            <div class="bg-purple-700 text-white p-4 rounded-2xl"><div class="text-[10px] font-bold uppercase tracking-wider">Total Keluar</div><div id="totalKeluar" class="text-xl font-bold mt-1">0</div></div>
+            <div class="bg-purple-800 text-white p-4 rounded-2xl"><div class="text-[10px] font-bold uppercase tracking-wider">Saldo Akhir</div><div id="saldoAkhir" class="text-xl font-bold mt-1">0</div></div>
+            <div class="bg-purple-900 text-white p-4 rounded-2xl"><div class="text-[10px] font-bold uppercase tracking-wider">Bersih 10%</div><div id="keuntunganBersih" class="text-xl font-bold mt-1">0</div></div>
+            <div class="bg-indigo-700 text-white p-4 rounded-2xl"><div class="text-[10px] font-bold uppercase tracking-wider">Avg Kotor/Bln</div><div id="avgKotor" class="text-xl font-bold mt-1">0</div></div>
+            <div class="bg-fuchsia-700 text-white p-4 rounded-2xl"><div class="text-[10px] font-bold uppercase tracking-wider">Avg Bersih/Bln</div><div id="avgBersih" class="text-xl font-bold mt-1">0</div></div>
+        </div>
+
+        <button onclick="exportRekapCSV()" class="mb-6 flex items-center gap-2 bg-purple-700 text-white px-6 py-3 rounded-xl hover:bg-purple-800 transition font-semibold">
+            <span>📊</span> Export Rekap CSV
+        </button>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-purple-50 text-purple-900 uppercase text-xs">
+                        <th class="p-4 border-b">Tanggal</th>
+                        <th class="p-4 border-b">Keterangan</th>
+                        <th class="p-4 border-b">Pemasukan</th>
+                        <th class="p-4 border-b">Pengeluaran</th>
+                        <th class="p-4 border-b">Saldo</th>
+                        <th class="p-4 border-b">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="tabelBody" class="text-zinc-700"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let transaksi = JSON.parse(localStorage.getItem('dataKas')) || [];
+        let pendingAction = '';
+        let targetIndex = null;
+
+        document.getElementById('namaPengguna').value = localStorage.getItem('namaUser') || '';
+        document.getElementById('asalTempat').value = localStorage.getItem('asalTempat') || '';
+        document.getElementById('saldoAwal').value = localStorage.getItem('saldoAwal') || 0;
+        
+        function saveDraft() {
+            localStorage.setItem('draft_tanggal', document.getElementById('tanggal').value);
+            localStorage.setItem('draft_keterangan', document.getElementById('keterangan').value);
+            localStorage.setItem('draft_masuk', document.getElementById('masuk').value);
+            localStorage.setItem('draft_keluar', document.getElementById('keluar').value);
+        }
+        
+        document.getElementById('tanggal').value = localStorage.getItem('draft_tanggal') || new Date().toISOString().split('T')[0];
+        document.getElementById('keterangan').value = localStorage.getItem('draft_keterangan') || '';
+        document.getElementById('masuk').value = localStorage.getItem('draft_masuk') || '';
+        document.getElementById('keluar').value = localStorage.getItem('draft_keluar') || '';
+
+        function openPinForIdentity() { pendingAction = 'identity'; document.getElementById('pinOverlay').classList.remove('hidden'); }
+        function openPinForDelete(index) { pendingAction = 'delete'; targetIndex = index; document.getElementById('pinOverlay').classList.remove('hidden'); }
+        function closePin() { document.getElementById('pinOverlay').classList.add('hidden'); document.getElementById('pinInput').value = ''; }
+        
+        function verifikasiPin() {
+            if (document.getElementById('pinInput').value === '123456') {
+                if (pendingAction === 'identity') {
+                    document.getElementById('identitySection').classList.remove('locked');
+                } else if (pendingAction === 'delete') {
+                    transaksi.splice(targetIndex, 1);
+                    localStorage.setItem('dataKas', JSON.stringify(transaksi));
+                    renderTabel();
+                }
+                closePin();
+            } else {
+                alert('PIN Salah!');
+            }
+        }
+
+        function lockSections() {
+            document.getElementById('identitySection').classList.add('locked');
+        }
+
+        function createBackgroundElements() {
+            const container = document.getElementById('background-layer');
+            for (let i = 0; i < 30; i++) {
+                const span = document.createElement('span');
+                span.innerHTML = Math.random() > 0.5 ? '🔮' : '✨';
+                span.className = 'bg-element';
+                span.style.left = Math.random() * 100 + 'vw';
+                span.style.animationDuration = (10 + Math.random() * 10) + 's';
+                container.appendChild(span);
+            }
+        }
+        createBackgroundElements();
+
+        function simpanData() { 
+            localStorage.setItem('namaUser', document.getElementById('namaPengguna').value);
+            localStorage.setItem('asalTempat', document.getElementById('asalTempat').value);
+            localStorage.setItem('saldoAwal', document.getElementById('saldoAwal').value);
+        }
+
+        function renderTabel() {
+            const body = document.getElementById('tabelBody');
+            body.innerHTML = '';
+            let saldo = parseInt(document.getElementById('saldoAwal').value) || 0;
+            let totalM = 0; let totalK = 0;
+            const bulanData = {};
+
+            transaksi.forEach((t, index) => {
+                let m = parseInt(t.masuk) || 0;
+                let k = parseInt(t.keluar) || 0;
+                saldo += (m - k);
+                totalM += m; totalK += k;
+                const bulan = t.tanggal.substring(0, 7);
+                if (!bulanData[bulan]) bulanData[bulan] = 0;
+                bulanData[bulan] += m;
+
+                body.innerHTML += `
+                    <tr class="hover:bg-purple-50 transition border-b border-purple-100">
+                        <td class="p-4">${t.tanggal}</td>
+                        <td class="p-4">${t.keterangan}</td>
+                        <td class="p-4 font-mono text-green-700">${m.toLocaleString()}</td>
+                        <td class="p-4 font-mono text-purple-700">${k.toLocaleString()}</td>
+                        <td class="p-4 font-bold font-mono">${saldo.toLocaleString()}</td>
+                        <td class="p-4"><button onclick="openPinForDelete(${index})" class="text-purple-500 hover:text-red-600 font-bold px-3 py-1 bg-purple-100 rounded-lg">X</button></td>
+                    </tr>
+                `;
+            });
+            document.getElementById('totalMasuk').innerText = totalM.toLocaleString();
+            document.getElementById('totalKeluar').innerText = totalK.toLocaleString();
+            document.getElementById('saldoAkhir').innerText = saldo.toLocaleString();
+            document.getElementById('keuntunganBersih').innerText = (totalM * 0.1).toLocaleString();
+            const avgKotor = (Object.values(bulanData).reduce((a, b) => a + b, 0) / (Object.keys(bulanData).length || 1)).toFixed(0);
+            document.getElementById('avgKotor').innerText = parseInt(avgKotor).toLocaleString();
+            document.getElementById('avgBersih').innerText = (avgKotor * 0.1).toFixed(0).toLocaleString();
+        }
+
+        function tambahTransaksi() {
+            const t = { tanggal: document.getElementById('tanggal').value, keterangan: document.getElementById('keterangan').value, masuk: document.getElementById('masuk').value || 0, keluar: document.getElementById('keluar').value || 0 };
+            if(!t.keterangan) return alert("Isi keterangan!");
+            transaksi.push(t);
+            localStorage.setItem('dataKas', JSON.stringify(transaksi));
+            document.getElementById('keterangan').value = '';
+            document.getElementById('masuk').value = '';
+            document.getElementById('keluar').value = '';
+            saveDraft();
+            renderTabel();
+        }
+        
+        function exportRekapCSV() {
+            const namaUser = document.getElementById('namaPengguna').value || 'User';
+            const totalMasuk = document.getElementById('totalMasuk').innerText;
+            const totalKeluar = document.getElementById('totalKeluar').innerText;
+            const saldoAkhir = document.getElementById('saldoAkhir').innerText;
+            const keuBersih = document.getElementById('keuntunganBersih').innerText;
+            const avgKotor = document.getElementById('avgKotor').innerText;
+            const avgBersih = document.getElementById('avgBersih').innerText;
+
+            let csv = `REKAP KEUANGAN ZMART BATOLA\n`;
+            csv += `Nama Pengguna,${namaUser}\n\n`;
+            csv += `Kategori,Nilai\n`;
+            csv += `Total Masuk,${totalMasuk}\n`;
+            csv += `Total Keluar,${totalKeluar}\n`;
+            csv += `Saldo Akhir,${saldoAkhir}\n`;
+            csv += `Keuntungan Bersih (10%),${keuBersih}\n`;
+            csv += `Avg Kotor/Bln,${avgKotor}\n`;
+            csv += `Avg Bersih/Bln,${avgBersih}\n\n`;
+            
+            csv += `RINCIAN TRANSAKSI\n`;
+            csv += `Tanggal,Keterangan,Pemasukan,Pengeluaran,Keuntungan 10%\n`;
+            transaksi.forEach(t => {
+                const masuk = parseInt(t.masuk) || 0;
+                const keluar = parseInt(t.keluar) || 0;
+                const untung10 = (masuk * 0.1).toFixed(0);
+                csv += `${t.tanggal},"${t.keterangan}",${masuk},${keluar},${untung10}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `Rekap_Keuangan_${namaUser.replace(/\s+/g, '_')}.csv`);
+            a.click();
+        }
+
+        renderTabel();
+    </script>
+</body>
+</html>
